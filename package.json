@@ -1,0 +1,40 @@
+{
+	"name": "pi-zed-models",
+	"version": "1.0.0",
+	"description": "Use Zed hosted models in Pi coding agent via Zed desktop credentials or web sign-in.",
+	"type": "module",
+	"license": "MIT",
+	"keywords": [
+		"pi",
+		"pi-package",
+		"zed",
+		"zed-models",
+		"anthropic",
+		"openai",
+		"google"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/hakergeniusz/pi-zed-models.git"
+	},
+	"bugs": {
+		"url": "https://github.com/hakergeniusz/pi-zed-models/issues"
+	},
+	"homepage": "https://github.com/hakergeniusz/pi-zed-models#readme",
+	"pi": {
+		"extensions": [
+			"./index.ts"
+		]
+	},
+	"scripts": {
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*"
+	},
+	"devDependencies": {
+		"@types/node": "^22.0.0",
+		"typescript": "^5.0.0"
+	}
+}
