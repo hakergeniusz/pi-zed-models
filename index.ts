@@ -93,36 +93,47 @@ async function refreshZedToken(
 	return credentials;
 }
 
-export default async function (pi: ExtensionAPI) {
-	let modelsToRegister: ZedModelDefinition[] = KNOWN_MODELS;
+const toProviderModels = (defs: ZedModelDefinition[]) =>
+	defs.map(({ id, name, reasoning, input, cost, contextWindow, maxTokens }) => ({
+		id,
+		name,
+		reasoning,
+		input,
+		cost,
+		contextWindow,
+		maxTokens,
+	}));
 
-	// Attempt to query live available models from Zed if logged in
-	try {
-		const localCreds = await readLocalZedCredentials();
-		if (localCreds) {
-			const llmToken = await createLlmToken(localCreds.userId, localCreds.accessToken);
-			const live = await fetchLiveModels(llmToken);
-			if (live.length > 0) {
-				modelsToRegister = live;
-			}
-		}
-	} catch {
-		// Fall back to KNOWN_MODELS catalog
-	}
+/** Live-models cache so repeated refreshes in one process don't re-hit the network. */
+let liveModelsCache: ZedModelDefinition[] | null = null;
 
+export default function (pi: ExtensionAPI) {
+	// Register the catalog immediately: startup must not wait on credential
+	// reads or the network. The live fetch moves into refreshModels, which pi
+	// calls lazily (model picker, modelRegistry.refresh) instead of at startup.
 	pi.registerProvider("zed", {
 		baseUrl: "https://cloud.zed.dev",
 		apiKey: "zed-models",
 		api: "zed-completions-api",
-		models: modelsToRegister.map(({ id, name, reasoning, input, cost, contextWindow, maxTokens }) => ({
-			id,
-			name,
-			reasoning,
-			input,
-			cost,
-			contextWindow,
-			maxTokens,
-		})),
+		models: toProviderModels(KNOWN_MODELS),
+		refreshModels: async () => {
+			if (liveModelsCache) {
+				return toProviderModels(liveModelsCache);
+			}
+			try {
+				const localCreds = await readLocalZedCredentials();
+				if (!localCreds) {
+					return toProviderModels(KNOWN_MODELS);
+				}
+				const llmToken = await createLlmToken(localCreds.userId, localCreds.accessToken);
+				const live = await fetchLiveModels(llmToken);
+				liveModelsCache = live.length > 0 ? live : KNOWN_MODELS;
+			} catch {
+				// Network or credential trouble: keep serving the static catalog.
+				liveModelsCache = KNOWN_MODELS;
+			}
+			return toProviderModels(liveModelsCache);
+		},
 		oauth: {
 			name: "Zed Hosted Models",
 			login: loginZed,
